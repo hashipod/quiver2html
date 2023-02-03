@@ -10,8 +10,14 @@ const HTML_TEMPLATE = fs.readFileSync(HTML_TEMPLATE_FILE, {encoding: "utf8"})
 const htmlEscape = s => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
 const exportNoteAsHTML = function(noteDir, outputDir) {
-  const meta = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "meta.json")))
-  const content = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "content.json")))
+    try{
+	var meta = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "meta.json")))
+	var content = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "content.json")))
+    } catch {
+	console.log(noteDir + " has no valid meta.json or content.json")
+	return;
+    }
+
   const { title } = meta
   let s = ""
   for (let c of content.cells) {
@@ -32,7 +38,7 @@ const exportNoteAsHTML = function(noteDir, outputDir) {
   }
 
   const html = HTML_TEMPLATE.replace("{{title}}", title).replace("{{content}}", s)
-  const htmlDir = sysPath.join(outputDir, meta.title.replace("/", ":"))
+  const htmlDir = sysPath.join(outputDir, meta.title.replaceAll("/", ":"))
   if (!fs.existsSync(htmlDir)) { fs.mkdirSync(htmlDir) }
   fs.writeFileSync(sysPath.join(htmlDir, "index.html"), html)
 
@@ -48,9 +54,15 @@ const exportAsHTML = function(path, outputDir) {
   if (outputDir == null) { outputDir = process.cwd() }
 
   switch (sysPath.extname(dir)) {
-    case ".qvnotebook":
-      var notebook = JSON.parse(fs.readFileSync(sysPath.join(dir, "meta.json")))
-      outputDir = sysPath.join(outputDir, notebook.name.replace("/", ":"))
+  case ".qvnotebook":
+      try{
+	  var notebook = JSON.parse(fs.readFileSync(sysPath.join(dir, "meta.json")))
+      } catch {
+	  console.log(dir + ".qvnotebook notebook has no valid meta.json")
+	  break;
+      }
+
+      outputDir = sysPath.join(outputDir, notebook.name.replaceAll("/", ":"))
       if (!fs.existsSync(outputDir)) { fs.mkdirSync(outputDir) }
 
       var files = fs.readdirSync(dir)
