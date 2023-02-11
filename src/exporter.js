@@ -5,20 +5,20 @@ const md = new MarkdownIt()
 
 const TEMPLATE_DIR = sysPath.join(__dirname, "template")
 const HTML_TEMPLATE_FILE = sysPath.join(TEMPLATE_DIR, "index.html")
-const HTML_TEMPLATE = fs.readFileSync(HTML_TEMPLATE_FILE, {encoding: "utf8"})
+const HTML_TEMPLATE = fs.readFileSync(HTML_TEMPLATE_FILE, { encoding: "utf8" })
 
 const htmlEscape = s => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
-const exportNoteAsHTML = function(noteDir, outputDir) {
-    try{
-	var meta = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "meta.json")))
-	var content = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "content.json")))
-    } catch {
-	console.log(noteDir + " has no valid meta.json or content.json")
-	return;
-    }
+const exportNoteAsHTML = function (noteDir, outputDir) {
+  try {
+    var meta = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "meta.json")))
+    var content = JSON.parse(fs.readFileSync(sysPath.join(noteDir, "content.json")))
+  } catch {
+    console.log(noteDir + " has no valid meta.json or content.json")
+    return;
+  }
 
-  const { title } = meta
+  const { title, created_at, updated_at, uuid, tags } = meta
   let s = ""
   for (let c of content.cells) {
     switch (c.type) {
@@ -37,7 +37,13 @@ const exportNoteAsHTML = function(noteDir, outputDir) {
     }
   }
 
-  const html = HTML_TEMPLATE.replace("{{title}}", title).replace("{{content}}", s)
+  let html = HTML_TEMPLATE.replace("{{title}}", title).replace("{{content}}", s)
+  // insert front matters
+  html = html.replace("{{fm-title}}", title)
+  html = html.replace("{{fm-created-at}}", created_at)
+  html = html.replace("{{fm-updated-at}}", updated_at)
+  html = html.replace("{{fm-uuid}}", uuid)
+  html = html.replace("{{fm-tags}}", tags.join(","))
   const htmlDir = sysPath.join(outputDir, meta.title.replaceAll("/", ":"))
   if (!fs.existsSync(htmlDir)) { fs.mkdirSync(htmlDir) }
   fs.writeFileSync(sysPath.join(htmlDir, "index.html"), html)
@@ -49,17 +55,31 @@ const exportNoteAsHTML = function(noteDir, outputDir) {
   }
 }
 
-const exportAsHTML = function(path, outputDir) {
+const exportAsHTML = function (path, outputDir) {
   const dir = sysPath.resolve(path)
   if (outputDir == null) { outputDir = process.cwd() }
 
   switch (sysPath.extname(dir)) {
-  case ".qvnotebook":
-      try{
-	  var notebook = JSON.parse(fs.readFileSync(sysPath.join(dir, "meta.json")))
+    case ".qvlibrary":
+      try {
+        var library = JSON.parse(fs.readFileSync(sysPath.join(dir, "meta.json")))
       } catch {
-	  console.log(dir + ".qvnotebook notebook has no valid meta.json")
-	  break;
+        console.log(dir + ".qvlibrary has no valid meta.json")
+        break;
+      }
+      const notebooks = library.children || []
+      notebooks.forEach(notebook => {
+        const notebookDir = sysPath.join(dir, notebook.uuid + ".qvnotebook")
+        console.log("notebookDir: %s", notebookDir)
+        exportAsHTML(notebookDir, outputDir)
+      });
+      break
+    case ".qvnotebook":
+      try {
+        var notebook = JSON.parse(fs.readFileSync(sysPath.join(dir, "meta.json")))
+      } catch {
+        console.log(dir + ".qvnotebook notebook has no valid meta.json")
+        break
       }
 
       outputDir = sysPath.join(outputDir, notebook.name.replaceAll("/", ":"))
