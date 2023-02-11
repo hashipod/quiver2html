@@ -44,7 +44,13 @@ const exportNoteAsHTML = function (noteDir, outputDir) {
   html = html.replace("{{fm-updated-at}}", updated_at)
   html = html.replace("{{fm-uuid}}", uuid)
   html = html.replace("{{fm-tags}}", tags.join(","))
-  const htmlDir = sysPath.join(outputDir, meta.title.replaceAll("/", ":"))
+
+  let noteName = (meta.title || meta.uuid).replaceAll("/", ":")
+  // make sure it's not a hidden file.
+  if (noteName.startsWith(".")) {
+    noteName = "Note:" + noteName
+  }
+  const htmlDir = sysPath.join(outputDir, noteName)
   if (!fs.existsSync(htmlDir)) { fs.mkdirSync(htmlDir) }
   fs.writeFileSync(sysPath.join(htmlDir, "index.html"), html)
 
@@ -77,6 +83,9 @@ const exportAsHTML = function (path, outputDir) {
     case ".qvnotebook":
       try {
         var notebook = JSON.parse(fs.readFileSync(sysPath.join(dir, "meta.json")))
+        if (!notebook.name) {
+          notebook.name = notebook.uuid
+        }
       } catch {
         console.log(dir + ".qvnotebook notebook has no valid meta.json")
         break
